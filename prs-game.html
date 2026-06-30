@@ -6,22 +6,22 @@
 <title>PRS — Rock · Paper · Scissors</title>
 <style>
 /* ═══════════════════════════════════════════════════
-   THEME — "Arcade Duel" (retheme everything from here)
+   THEME — "Solar Flare" (retheme everything from here)
    ═══════════════════════════════════════════════════ */
 :root{
-  --bg-0:#1a1340;
-  --bg-1:#2a1a63;
-  --bg-2:#120c2e;
-  --accent:#7c5cff;
-  --accent-2:#b78bff;
-  --win:#3ddc84;
-  --lose:#ff5470;
-  --draw:#ffc145;
-  --ink:#f4f1ff;
-  --muted:#a99fd6;
-  --card:#2c2058;
-  --card-hi:#3a2c70;
-  --line:rgba(183,139,255,.25);
+  --bg-0:#1a0e00;
+  --bg-1:#2d1800;
+  --bg-2:#0d0700;
+  --accent:#ff8c42;
+  --accent-2:#ffb36a;
+  --win:#7ac74f;
+  --lose:#ff4757;
+  --draw:#ffd700;
+  --ink:#fff3e0;
+  --muted:#c49a72;
+  --card:#2d1a00;
+  --card-hi:#3d2200;
+  --line:rgba(255,140,66,.25);
   --shadow:0 18px 40px rgba(0,0,0,.45);
 }
 
@@ -145,6 +145,9 @@ body{
 .move-btn:active{transform:translateY(2px) scale(.97);}
 .move-btn.flash{border-color:var(--accent-2);background:linear-gradient(160deg,var(--accent),var(--card-hi));}
 #controls.disabled{pointer-events:none;opacity:.5;}
+.ls-only{display:none;}
+#controls.ls-active .ls-only{display:flex;}
+#controls.ls-active .move-btn{max-width:130px;}
 
 /* ── GAME BUTTONS (Pause / Reset) ───────────────── */
 #game-btns{
@@ -274,6 +277,9 @@ body{
   #mode-badge{font-size:11px;padding:3px 9px;}
   .move-btn{min-height:74px;border-radius:18px;}
   .move-btn .mv-key{display:none;}
+  #controls.ls-active{flex-wrap:wrap;}
+  #controls.ls-active .move-btn{flex:0 0 auto;width:calc(33.33% - 10px);min-height:64px;max-width:none;}
+  #controls.ls-active .move-btn .mv-name{display:none;}
   .vs{margin:0 2px;}
 }
 @media (max-height:560px){
@@ -336,6 +342,8 @@ body{
   <button class="move-btn" data-move="rock"><span class="mv-glyph">✊</span><span class="mv-name">Rock</span><span class="mv-key">R</span></button>
   <button class="move-btn" data-move="paper"><span class="mv-glyph">✋</span><span class="mv-name">Paper</span><span class="mv-key">P</span></button>
   <button class="move-btn" data-move="scissors"><span class="mv-glyph">✌️</span><span class="mv-name">Scissors</span><span class="mv-key">S</span></button>
+  <button class="move-btn ls-only" data-move="lizard"><span class="mv-glyph">🦎</span><span class="mv-name">Lizard</span><span class="mv-key">L</span></button>
+  <button class="move-btn ls-only" data-move="spock"><span class="mv-glyph">🖖</span><span class="mv-name">Spock</span><span class="mv-key">K</span></button>
 </div>
 
 <!-- OVERLAY -->
@@ -353,6 +361,11 @@ body{
         <button class="seg-btn active" data-bestof="5">Best of 5</button>
         <button class="seg-btn" data-bestof="7">Best of 7</button>
         <button class="seg-btn" data-bestof="0" id="seg-endless">Endless</button>
+      </div>
+      <div class="field-label" id="ov-variant-label">VARIANT</div>
+      <div class="seg" id="variant-seg">
+        <button class="seg-btn active" data-variant="classic">Classic</button>
+        <button class="seg-btn" data-variant="ls">Lizard-Spock</button>
       </div>
     </div>
 
@@ -379,11 +392,18 @@ body{
 // ═══════════════════════════════════════════════════
 //  GAME RULES (data-driven — extensible to Lizard-Spock)
 // ═══════════════════════════════════════════════════
-const MOVES = ['rock','paper','scissors'];
-const BEATS = { rock:['scissors'], paper:['rock'], scissors:['paper'] };
-const GLYPH = { rock:'✊', paper:'✋', scissors:'✌️' };
+const MOVES_CLASSIC = ['rock','paper','scissors'];
+const MOVES_LS      = ['rock','paper','scissors','lizard','spock'];
+const BEATS = {
+  rock:    ['scissors','lizard'],
+  paper:   ['rock','spock'],
+  scissors:['paper','lizard'],
+  lizard:  ['spock','paper'],
+  spock:   ['scissors','rock'],
+};
+const GLYPH = { rock:'✊', paper:'✋', scissors:'✌️', lizard:'🦎', spock:'🖖' };
 const beats = (a,b) => BEATS[a].includes(b);
-// Lizard-Spock later: add 'lizard','spock' to MOVES, extend each BEATS entry, add glyphs/buttons. No other change.
+let MOVES = MOVES_CLASSIC;
 
 const cpuPick = () => MOVES[Math.floor(Math.random() * MOVES.length)];
 
@@ -411,6 +431,12 @@ const STRINGS = {
     rock:'Rock', paper:'Paper', scissors:'Scissors',
     streak:'STREAK',
     pause:'Pause', resume:'Resume', reset:'Reset', pausedTitle:'⏸ PAUSED',
+    variantLabel:'VARIANT', classic:'Classic', ls:'Lizard-Spock',
+    lizard:'Lizard', spock:'Spock',
+    instructionsLS:`Throw your move and beat the computer.<br>
+      <span>Rock</span> crushes Scissors &amp; Lizard · <span>Paper</span> covers Rock &amp; disproves Spock ·<br>
+      <span>Scissors</span> cuts Paper &amp; decapitates Lizard · <span>Lizard</span> eats Paper &amp; poisons Spock ·<br>
+      <span>Spock</span> smashes Scissors &amp; vaporizes Rock.`,
   },
   ar:{
     title:'حجر ورقة مقص',
@@ -432,6 +458,12 @@ const STRINGS = {
     rock:'حجر', paper:'ورقة', scissors:'مقص',
     streak:'السلسلة',
     pause:'إيقاف', resume:'استمر', reset:'إعادة', pausedTitle:'⏸ متوقف',
+    variantLabel:'النوع', classic:'كلاسيكي', ls:'السحلية-سبوك',
+    lizard:'السحلية', spock:'سبوك',
+    instructionsLS:`اختر حركتك واهزم الكمبيوتر.<br>
+      <span>الحجر</span> يسحق المقص والسحلية · <span>الورقة</span> تغطي الحجر وتدحض سبوك ·<br>
+      <span>المقص</span> يقطع الورقة ويقطع رأس السحلية · <span>السحلية</span> تأكل الورقة وتسمم سبوك ·<br>
+      <span>سبوك</span> يحطم المقص ويبخر الحجر.`,
   },
 };
 
@@ -451,6 +483,7 @@ let state = {
   round:0,
   streak:0,
   bestStreak:0,
+  variant:'classic',
   audioCtx:null,
 };
 let overlayMode = 'start';   // 'start' | 'gameover'
@@ -511,12 +544,16 @@ function applyOverlayStrings(){
   if (overlayMode === 'start'){
     $('start-content').style.display = '';
     $('go-content').style.display = 'none';
-    $('ov-instructions').innerHTML = S.instructions;
+    $('ov-instructions').innerHTML = state.variant === 'ls' ? S.instructionsLS : S.instructions;
     $('ov-mode-label').textContent = S.matchLabel;
     // mode segment labels
     document.querySelectorAll('#mode-seg .seg-btn').forEach(b=>{
       const n = +b.dataset.bestof;
       b.textContent = n === 0 ? S.endless : S.bestOf(n);
+    });
+    $('ov-variant-label').textContent = S.variantLabel;
+    document.querySelectorAll('#variant-seg .seg-btn').forEach(b=>{
+      b.textContent = S[b.dataset.variant];
     });
     $('play-btn').textContent = S.play;
   } else {
@@ -577,6 +614,7 @@ function syncGameBtns(){
 
 function startGame(){
   initAudio();
+  updateVariant();
   state.running = true;
   state.paused  = false;
   state.locked  = false;
@@ -610,6 +648,10 @@ function resumeGame(){
 function resetCards(){
   youCard.textContent = '❔'; cpuCard.textContent = '❔';
   youCard.className = 'glyph-card'; cpuCard.className = 'glyph-card';
+}
+function updateVariant(){
+  MOVES = state.variant === 'ls' ? MOVES_LS : MOVES_CLASSIC;
+  controls.classList.toggle('ls-active', state.variant === 'ls');
 }
 
 function playRound(move){
@@ -734,6 +776,17 @@ document.querySelectorAll('#mode-seg .seg-btn').forEach(b=>{
   });
 });
 
+// variant selector
+document.querySelectorAll('#variant-seg .seg-btn').forEach(b=>{
+  b.addEventListener('click', ()=>{
+    document.querySelectorAll('#variant-seg .seg-btn').forEach(x=>x.classList.remove('active'));
+    b.classList.add('active');
+    state.variant = b.dataset.variant;
+    updateVariant();
+    applyOverlayStrings();
+  });
+});
+
 // language toggle
 document.querySelectorAll('.lang-btn').forEach(b=>{
   b.addEventListener('click', ()=>{ state.language = b.dataset.lang; updateLangButton(); updateHUD(); });
@@ -749,7 +802,7 @@ $('resume-btn').addEventListener('click', resumeGame);
 $('reset-from-pause-btn').addEventListener('click', resetGame);
 
 // keyboard
-const KEYMAP = { r:'rock', p:'paper', s:'scissors', '1':'rock', '2':'paper', '3':'scissors' };
+const KEYMAP = { r:'rock', p:'paper', s:'scissors', l:'lizard', k:'spock', '1':'rock', '2':'paper', '3':'scissors' };
 document.addEventListener('keydown', e=>{
   const k = e.key.toLowerCase();
   if (!state.running){
@@ -761,13 +814,14 @@ document.addEventListener('keydown', e=>{
     return;
   }
   if (e.key === 'Escape'){ e.preventDefault(); pauseGame(); return; }
-  if (KEYMAP[k]){ e.preventDefault(); initAudio(); playRound(KEYMAP[k]); }
+  if (KEYMAP[k] && MOVES.includes(KEYMAP[k])){ e.preventDefault(); initAudio(); playRound(KEYMAP[k]); }
 });
 
 // ═══════════════════════════════════════════════════
 //  INIT
 // ═══════════════════════════════════════════════════
 loadBest();
+updateVariant();
 updateLangButton();
 updateHUD();
 </script>

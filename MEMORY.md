@@ -9,21 +9,27 @@ Running log of what has been built, decisions made, and what comes next. Read th
 The game is fully playable on **desktop and mobile** in both **English and Arabic**. It is live on GitHub (`mo-io/prs-game`, private) and auto-deploys to Vercel from `master`.
 
 ### What works
-- Rock · Paper · Scissors vs fair random CPU
+- Classic RPS and **Lizard-Spock** (5-move) variant — switchable via VARIANT control on start overlay
 - **Best-of-N** match modes (3 / 5 / 7) — first to `ceil(N/2)` round wins ends the match
 - **Endless** mode — never auto-ends; tracks current win streak and persists best streak to `localStorage` (`prs_best`)
 - "Shake → Reveal → Resolve" round animation (CSS keyframes, no game loop)
 - Result banner (You win! / CPU wins! / Draw) with win/lose/draw color coding
 - Full procedural Web Audio: tick (shake), ascending arpeggio (round win), sawtooth (round lose), blip (draw), chord (match win), descending saw (match lose)
 - HUD: YOU score · mode badge (Best-of target or live streak) · best-streak chip · CPU score
-- Keyboard shortcuts: R/P/S (or 1/2/3) to throw, Enter to start/play again, Esc to reset
-- **Mobile**: large tap-target move buttons (≥74px), responsive compact HUD/cards at ≤520px, `safe-area-inset` padding for notched phones
-- **Arabic language**: full bilingual overlay (title, subtitle, instructions, mode labels, move names, result banners, stat labels, best-streak line), RTL text direction, language selector on start and game-over overlays
-- Data-driven win rules — extensible to Lizard-Spock with no structural change
+- Keyboard shortcuts: R/P/S (or 1/2/3) to throw, L/K for Lizard/Spock (LS mode only), Enter to start/play again, Esc to pause
+- **Mobile**: ≥64px tap targets, 3+2 grid in LS mode, responsive compact HUD/cards at ≤520px, `safe-area-inset` padding for notched phones
+- **Arabic language**: full bilingual UI including all LS move names and rule descriptions, RTL text direction
+- **Solar Flare** color theme (amber/burnt-orange) — active palette; 14 CSS vars in `:root`
 
 ---
 
 ## Build History
+
+### Lizard-Spock + Solar Flare palette (2026-06-30)
+- Added Lizard-Spock variant: `MOVES_CLASSIC`/`MOVES_LS` split, `BEATS` extended to all 10 relationships, `GLYPH` extended, `state.variant`, `updateVariant()`, `#variant-seg` on start overlay, `.ls-only` CSS class, keyboard keys L/K, full Arabic translations including `instructionsLS`
+- Mobile LS layout: `#controls.ls-active` wraps to 3+2 grid, `.mv-name` hidden in LS+mobile
+- Keyboard handler gated by `MOVES.includes()` — LS keys silently ignored in Classic mode
+- Applied **Solar Flare** palette (amber/burnt-orange) replacing Arcade Duel (indigo/violet); theme is 14 CSS vars in `:root`
 
 ### Initial release (2026-06-30)
 - Single-file architecture (`prs-game.html`) — no build step, no dependencies, Python `http.server 3939` only
@@ -45,7 +51,6 @@ The game is fully playable on **desktop and mobile** in both **English and Arabi
 ## Known Gaps / Future Ideas
 
 ### Gameplay
-- **Lizard-Spock** — 5-move variant fully supported by the data model; needs UI: 2 extra buttons, extended `BEATS` entries, Arabic translations for lizard/spock
 - **Predictive / difficulty-selectable AI** — currently always random; a pattern-tracking AI (e.g. frequency analysis of last N moves) was explicitly deferred
 - **Local 2-player** — two humans on one device; deferred from initial scope
 - No animation for a "match point" alert (one win away from clinching)
