@@ -146,6 +146,65 @@ body{
 .move-btn.flash{border-color:var(--accent-2);background:linear-gradient(160deg,var(--accent),var(--card-hi));}
 #controls.disabled{pointer-events:none;opacity:.5;}
 
+/* ── GAME BUTTONS (Pause / Reset) ───────────────── */
+#game-btns{
+  flex:0 0 auto;
+  display:flex;justify-content:center;gap:12px;
+  padding:0 18px 10px;
+}
+#game-btns.hidden{display:none;}
+.game-btn{
+  display:flex;align-items:center;gap:7px;
+  padding:9px 20px;border-radius:14px;cursor:pointer;
+  background:rgba(44,32,88,.7);border:1px solid var(--line);color:var(--muted);
+  font-family:inherit;font-size:13px;font-weight:800;letter-spacing:.05em;
+  transition:border-color .15s, color .15s, background .15s;
+}
+.game-btn:hover{border-color:var(--accent-2);color:var(--ink);}
+.game-btn:active{transform:translateY(1px);}
+.game-btn .gb-icon{font-size:15px;}
+.game-btn .gb-key{font-size:11px;color:var(--muted);opacity:.7;margin-left:2px;}
+#btn-reset:hover{border-color:var(--lose);color:var(--lose);}
+@media (max-width:520px){
+  .game-btn .gb-label{display:none;}
+  .game-btn .gb-key{display:none;}
+  .game-btn{padding:9px 14px;}
+}
+
+/* ── PAUSE OVERLAY ───────────────────────────────── */
+#pause-overlay{
+  position:fixed;inset:0;z-index:15;
+  display:flex;align-items:center;justify-content:center;
+  background:rgba(18,12,46,.72);
+}
+#pause-overlay.hidden{display:none;}
+.pause-panel{
+  text-align:center;padding:36px 40px;
+  background:linear-gradient(160deg,rgba(58,44,112,.95),rgba(28,20,68,.97));
+  border:1px solid var(--line);border-radius:24px;
+  box-shadow:var(--shadow);min-width:240px;
+}
+#pause-title{
+  font-size:28px;font-weight:900;letter-spacing:.14em;
+  color:var(--accent-2);margin:0 0 28px;
+}
+.pause-action-btn{
+  display:block;width:100%;padding:13px;border-radius:14px;cursor:pointer;
+  font-family:inherit;font-size:15px;font-weight:800;letter-spacing:.04em;
+  transition:transform .08s, opacity .12s;margin-bottom:10px;
+}
+.pause-action-btn:last-child{margin-bottom:0;}
+#resume-btn{
+  background:linear-gradient(90deg,var(--accent),var(--accent-2));
+  border:none;color:#fff;
+  box-shadow:0 8px 20px rgba(124,92,255,.35);
+}
+#reset-from-pause-btn{
+  background:transparent;border:1px solid var(--line);color:var(--muted);
+}
+#reset-from-pause-btn:hover{border-color:var(--lose);color:var(--lose);}
+.pause-action-btn:active{transform:translateY(1px);}
+
 /* ── OVERLAY (start / game over) ─────────────────── */
 #overlay{
   position:fixed;inset:0;z-index:20;
@@ -257,6 +316,21 @@ body{
   <div id="banner"></div>
 </div>
 
+<!-- GAME BUTTONS (Pause / Reset) -->
+<div id="game-btns" class="hidden">
+  <button class="game-btn" id="btn-pause"><span class="gb-icon">⏸</span><span class="gb-label">Pause</span><span class="gb-key">Esc</span></button>
+  <button class="game-btn" id="btn-reset"><span class="gb-icon">↺</span><span class="gb-label">Reset</span></button>
+</div>
+
+<!-- PAUSE OVERLAY -->
+<div id="pause-overlay" class="hidden">
+  <div class="pause-panel">
+    <div id="pause-title">⏸ PAUSED</div>
+    <button class="pause-action-btn" id="resume-btn">▶ Resume</button>
+    <button class="pause-action-btn" id="reset-from-pause-btn">↺ Reset</button>
+  </div>
+</div>
+
 <!-- MOVE BUTTONS -->
 <div id="controls">
   <button class="move-btn" data-move="rock"><span class="mv-glyph">✊</span><span class="mv-name">Rock</span><span class="mv-key">R</span></button>
@@ -336,6 +410,7 @@ const STRINGS = {
     best:n=>`★ Best streak: ${n}`,
     rock:'Rock', paper:'Paper', scissors:'Scissors',
     streak:'STREAK',
+    pause:'Pause', resume:'Resume', reset:'Reset', pausedTitle:'⏸ PAUSED',
   },
   ar:{
     title:'حجر ورقة مقص',
@@ -356,6 +431,7 @@ const STRINGS = {
     best:n=>`★ أفضل سلسلة: ${n}`,
     rock:'حجر', paper:'ورقة', scissors:'مقص',
     streak:'السلسلة',
+    pause:'إيقاف', resume:'استمر', reset:'إعادة', pausedTitle:'⏸ متوقف',
   },
 };
 
@@ -366,6 +442,7 @@ const HS_KEY = 'prs_best';
 let state = {
   language:'en',
   running:false,
+  paused:false,
   locked:false,
   mode:'bestof',      // 'bestof' | 'endless'
   bestOf:5,
@@ -389,6 +466,8 @@ const modeBadge = $('mode-badge'), bestChip = $('best-chip');
 const youCard = $('you-card'), cpuCard = $('cpu-card');
 const banner = $('banner');
 const controls = $('controls');
+const gameBtns = $('game-btns');
+const pauseOverlay = $('pause-overlay');
 const moveBtns = [...document.querySelectorAll('.move-btn')];
 
 // ═══════════════════════════════════════════════════
@@ -462,6 +541,7 @@ function updateLangButton(){
   document.querySelectorAll('.lang-btn').forEach(b=>b.classList.toggle('active', b.dataset.lang === state.language));
   document.documentElement.lang = state.language;
   applyOverlayStrings();
+  syncGameBtns();
 }
 
 // ═══════════════════════════════════════════════════
@@ -483,17 +563,48 @@ function updateHUD(){
 // ═══════════════════════════════════════════════════
 //  LIFECYCLE
 // ═══════════════════════════════════════════════════
+function syncGameBtns(){
+  const S = STRINGS[state.language];
+  const pauseBtn = $('btn-pause');
+  pauseBtn.querySelector('.gb-label').textContent = state.paused ? S.resume : S.pause;
+  pauseBtn.querySelector('.gb-icon').textContent  = state.paused ? '▶' : '⏸';
+  pauseBtn.querySelector('.gb-key').textContent   = 'Esc';
+  $('btn-reset').querySelector('.gb-label').textContent = S.reset;
+  $('pause-title').textContent  = S.pausedTitle;
+  $('resume-btn').textContent   = `▶ ${S.resume}`;
+  $('reset-from-pause-btn').textContent = `↺ ${S.reset}`;
+}
+
 function startGame(){
   initAudio();
   state.running = true;
-  state.locked = false;
+  state.paused  = false;
+  state.locked  = false;
   state.youScore = 0; state.cpuScore = 0;
   state.round = 0; state.streak = 0;
   overlay.classList.add('hidden');
+  pauseOverlay.classList.add('hidden');
+  gameBtns.classList.remove('hidden');
   controls.classList.remove('disabled');
   resetCards();
   banner.className = ''; banner.textContent = '';
+  syncGameBtns();
   updateHUD();
+}
+
+function pauseGame(){
+  if (!state.running || state.locked) return;
+  state.paused = true;
+  controls.classList.add('disabled');
+  syncGameBtns();
+  pauseOverlay.classList.remove('hidden');
+}
+
+function resumeGame(){
+  state.paused = false;
+  pauseOverlay.classList.add('hidden');
+  controls.classList.remove('disabled');
+  syncGameBtns();
 }
 
 function resetCards(){
@@ -565,17 +676,20 @@ function resolveRound(result){
   setTimeout(()=>{
     if (!state.running) return;
     state.locked = false;
-    controls.classList.remove('disabled');
+    if (!state.paused) controls.classList.remove('disabled');
     banner.classList.remove('show');
   }, 700);
 }
 
 function endMatch(result){
   state.running = false;
-  state.locked = false;
+  state.paused  = false;
+  state.locked  = false;
   lastResult = result;
   overlayMode = 'gameover';
   controls.classList.add('disabled');
+  gameBtns.classList.add('hidden');
+  pauseOverlay.classList.add('hidden');
   if (result === 'win') sndMatchWin(); else sndMatchLose();
   applyOverlayStrings();
   updateHUD();
@@ -584,9 +698,12 @@ function endMatch(result){
 
 function resetGame(){
   state.running = false;
-  state.locked = false;
+  state.paused  = false;
+  state.locked  = false;
   overlayMode = 'start';
   controls.classList.add('disabled');
+  gameBtns.classList.add('hidden');
+  pauseOverlay.classList.add('hidden');
   resetCards();
   banner.className = ''; banner.textContent = '';
   applyOverlayStrings();
@@ -625,6 +742,12 @@ document.querySelectorAll('.lang-btn').forEach(b=>{
 // play button
 $('play-btn').addEventListener('click', startGame);
 
+// pause / reset in-game buttons
+$('btn-pause').addEventListener('click', ()=>{ state.paused ? resumeGame() : pauseGame(); });
+$('btn-reset').addEventListener('click', resetGame);
+$('resume-btn').addEventListener('click', resumeGame);
+$('reset-from-pause-btn').addEventListener('click', resetGame);
+
 // keyboard
 const KEYMAP = { r:'rock', p:'paper', s:'scissors', '1':'rock', '2':'paper', '3':'scissors' };
 document.addEventListener('keydown', e=>{
@@ -633,7 +756,11 @@ document.addEventListener('keydown', e=>{
     if (e.key === 'Enter'){ e.preventDefault(); startGame(); }
     return;
   }
-  if (e.key === 'Escape'){ e.preventDefault(); resetGame(); return; }
+  if (state.paused){
+    if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' '){ e.preventDefault(); resumeGame(); }
+    return;
+  }
+  if (e.key === 'Escape'){ e.preventDefault(); pauseGame(); return; }
   if (KEYMAP[k]){ e.preventDefault(); initAudio(); playRound(KEYMAP[k]); }
 });
 
