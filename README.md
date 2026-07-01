@@ -45,6 +45,7 @@ Everything lives in one file:
 ```
 prs-game.html   — HTML, CSS, and JavaScript for the entire game
 vercel.json     — rewrites "/" to "/prs-game.html" for deployment
+LICENSE         — MIT license
 ```
 
 ## Architecture notes
@@ -57,4 +58,4 @@ Connected to Vercel via the dashboard — every push to `master` auto-deploys. N
 
 ## License
 
-Personal project — no license specified.
+[MIT](LICENSE)
